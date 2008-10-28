@@ -1,6 +1,6 @@
 <?
 if(!extension_loaded('swishe')) {
-	dl('./swishe.so');
+	dl('swishe.so');
 }
 $module = 'swishe';
 $functions = get_extension_funcs($module);
@@ -17,7 +17,7 @@ if (extension_loaded($module)) {
 }
 echo "$str\n";
 
-$index_file = '/root/swish-e/tests/index.swish-e';
+$index_file = '../swish-e-2.4.3/tests/index.swish-e';
 $swish = swishe($index_file);
 
 if(($err = $swish->error()))
@@ -59,11 +59,15 @@ foreach ($header_names as $val)
 
 //$results = $swish->query("test");
 $search = $swish->new_search_object("test");
-//$search->set_query("test");
 //$search->set_search_limit('fpu','20020101','20020131');
 $search->set_sort('swishdocpath asc swishrank desc');
+
 $results = $search->execute();
 
+
+//Just another seach
+//$search->set_query("other");
+//$results = $search->execute();
 
 $parsed_words = $results->parsed_words($index_file);
 echo "Parsed words:\n";

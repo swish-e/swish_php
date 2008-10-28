@@ -28,13 +28,16 @@
 typedef struct {
     int id;
     SW_HANDLE swishe_handle;
+    void *swishe_search;
 } php_swishe;
 
+//Linked list for all search objects
 typedef struct {
     int id;
     void *swishe_search_handle;
     SW_HANDLE swishe_handle;
     php_swishe *swishe;
+    void *next;
 } php_swishe_search;
 
 typedef struct {
@@ -223,7 +226,20 @@ PHP_INI_END()
 static void _php_swishe_close(zend_rsrc_list_entry *rsrc)
 {
 php_swishe *swishe = (php_swishe *)rsrc->ptr;
+php_swishe_search *swishe_search = (php_swishe_search *)swishe->swishe_search;
+php_swishe_search *tmp;
 
+//{FILE *fh=fopen("/tmp/swish.log","a");fputs("swishe_close\n",fh);fclose(fh);}
+    //Free swishe_search objects
+    while(swishe_search)
+    {
+        Free_Search_Object(swishe_search->swishe_search_handle);
+        tmp = swishe_search;
+        swishe_search = (php_swishe_search *)swishe_search->next;
+        efree(tmp);
+    }
+
+    //Close and free  SWISH object
     SwishClose(swishe->swishe_handle);
     efree(swishe);
 }
@@ -233,8 +249,11 @@ static void _php_swishe_search_close(zend_rsrc_list_entry *rsrc)
 {
 php_swishe_search *search = (php_swishe_search *)rsrc->ptr;
 
-    Free_Search_Object(search->swishe_search_handle);
-    efree(search);
+//{FILE *fh=fopen("/tmp/swish.log","a");fputs("search_close\n",fh);fclose(fh);}
+
+    // This is now made in _php_swishe_close
+    //Free_Search_Object(search->swishe_search_handle);
+    //efree(search);
 }
 
 /* destroy a resource of type "swishe_results" */
@@ -242,6 +261,7 @@ static void _php_swishe_results_close(zend_rsrc_list_entry *rsrc)
 {
 php_swishe_results *results = (php_swishe_results *)rsrc->ptr;
 
+//{FILE *fh=fopen("/tmp/swish.log","a");fputs("results_close\n",fh);fclose(fh);}
     Free_Results_Object(results->swishe_results_handle);
     efree(results);
 }
@@ -252,6 +272,7 @@ static void _php_swishe_result_close(zend_rsrc_list_entry *rsrc)
 {
 php_swishe_result *result = (php_swishe_result *)rsrc->ptr;
 
+//{FILE *fh=fopen("/tmp/swish.log","a");fputs("result_close\n",fh);fclose(fh);}
     efree(result);
 }
 
@@ -329,6 +350,7 @@ static void _php_swishe_open(INTERNAL_FUNCTION_PARAMETERS, int createobject)
     swishe = (php_swishe *) emalloc(sizeof(php_swishe));
     swishe->swishe_handle = SwishInit( index_file_list );
     swishe->id = zend_list_insert(swishe,le_swishe);
+    swishe->swishe_search = NULL;
 
     if(createobject)
     {
@@ -1137,6 +1159,11 @@ int query_len;
     search->swishe = swishe;
     search->swishe_handle = swishe->swishe_handle;
     search->swishe_search_handle = New_Search_Object( swishe->swishe_handle, query );
+
+    /* Add search handler to swish object */
+    search->next = (void *)swishe->swishe_search;
+    swishe->swishe_search = (void *)search;
+
     search->id = zend_list_insert(search,le_swishe_search);
 
     object_init_ex(return_value, swishe_search_class_entry_ptr);
